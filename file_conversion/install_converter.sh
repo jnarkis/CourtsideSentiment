@@ -4,9 +4,11 @@
 sudo apt-get update
 sudo apt-get install awscli -y
 # If installation didn't work, try again
-command -v aws > /dev/null 2>&1 || { echo 'aws did not install correctly, trying apt-get update again.'; sudo apt-get update; }
+command -v aws > /dev/null 2>&1 || \
+   { echo 'aws did not install correctly, trying apt-get update again.'; sudo apt-get update; }
 # If it didn't work this time, something failed. Check EC2 console
-command -v aws > /dev/null 2>&1 || { echo 'aws did not install correctly again, check instance status.'; exit 1; }
+command -v aws > /dev/null 2>&1 || \
+   { echo 'aws did not install correctly again, check instance status.'; exit 1; }
 
 sudo apt-get install openjdk-8-jre-headless -y
 sudo apt-get install python -y #python3 is installed by default, install python 2 just in case
