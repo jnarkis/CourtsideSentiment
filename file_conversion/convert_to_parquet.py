@@ -104,7 +104,8 @@ def convert(spark,month,year):
 # If the parquet directory exists on S3, erase it and overwrite.
    test_key_exist = subprocess.run('aws s3api head-object --bucket %s --key %s/%s.parquet/._SUCCESS' % (bucket,year,key),\
       shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-   test_key_exist2 = subprocess.run('aws s3api head-object --bucket %s --key %s/%s.parquet/._SUCCESS.crc' % (bucket,year,key),\
+   test_key_exist2 = subprocess.run(\
+      'aws s3api head-object --bucket %s --key %s/%s.parquet/._SUCCESS.crc' % (bucket,year,key),\
       shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 
    if (test_key_exist.returncode == 0 or test_key_exist2.returncode == 0):
