@@ -9,7 +9,7 @@ command -v aws > /dev/null 2>&1 || { echo 'aws did not install correctly, trying
 command -v aws > /dev/null 2>&1 || { echo 'aws did not install correctly again, check instance status.'; exit 1; }
 
 sudo apt-get install openjdk-8-jre-headless -y
-sudo apt-get install python #python3 is installed by default, install python 2 just in case
+sudo apt-get install python -y #python3 is installed by default, install python 2 just in case
 sudo apt-get install python3-pip -y
 sudo apt-get install pbzip2
 sudo apt-get install zstd
