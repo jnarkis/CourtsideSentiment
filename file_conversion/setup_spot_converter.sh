@@ -36,4 +36,8 @@ ssh ubuntu@10.0.0.5 'sudo mkfs /dev/nvme0n1'
 ssh ubuntu@10.0.0.5 'sudo mount /dev/nvme0n1 /home/ubuntu/bigdrive'
 ssh ubuntu@10.0.0.5 'sudo chown ubuntu /home/ubuntu/bigdrive'
 
+# Copy python scripts needed for file conversion
+scp convert_to_parquet.py ubuntu@10.0.0.5:/home/ubuntu
+scp ../libs/loadschema.py ubuntu@10.0.0.5:/home/ubuntu
+
 echo 'Spot instance has been configured at 10.0.0.5.'
