@@ -6,34 +6,19 @@
 
 #External modules
 
-import pyspark
 from pyspark.sql import SparkSession
-from pyspark.sql import SQLContext
-from pyspark.sql.types import *
 import sys
 import os
 import subprocess
+import time
 
 #Locally defined functions
 import loadschema as ls
 
-if __name__ == "__main__":
-
-#  Create the spark session, initialize contexts
-   spark = SparkSession\
-     .builder\
-     .appName("convertToParquet")\
-     .getOrCreate()
-   conf = pyspark.SparkConf()
-   sc = pyspark.SparkContext.getOrCreate(conf=conf)
-   sqlContext = SQLContext(sc)
-
-   month = sys.argv[1]
-   year = sys.argv[2]
-
-   convert(spark,month,year)
-
 def convert(spark,month,year):
+
+#  Print timestamp
+   print("Spark initialization timestamp: ", time.time())
 
    key = "RC_%s-%s" % (year,month.zfill(2))
    bucket = "seade20-reddit-comments"
@@ -63,6 +48,8 @@ def convert(spark,month,year):
    else:
       os.system("aws s3 cp s3://%s/%s/%s%s /home/ubuntu/%s%s" % (bucket,year,key,ext,key,ext))
 
+   print("File download timestamp: ",time.time())
+
 #  If file format is .xz or .zst, decompress file before loading into DataFrame
    if (ext==".bz2"):
       print("JSON files compressed to .bz2 can be directly read to DataFrame.")
@@ -76,9 +63,11 @@ def convert(spark,month,year):
       subprocess.run('zstd -dc -T8 /home/ubuntu/%s.zst > /home/ubuntu/bigdrive/%s' % (key,key),shell=True)
       print("File decompressed.")
 
+   print("File decompression timestamp: ",time.time())
+
 # Read file into DataFrame
    if (ext==".bz2"):
-     data = spark.read.schema(ls.redditSchema3()).json("/home/ubuntu/bigdrive/%s.bz2" % key)
+     data = spark.read.schema(ls.redditSchema3()).json("/home/ubuntu/%s.bz2" % key)
    else:
      data = spark.read.schema(ls.redditSchema3()).json("/home/ubuntu/bigdrive/%s" % key)
 
@@ -100,9 +89,11 @@ def convert(spark,month,year):
    data.write.parquet("/home/ubuntu/%s.parquet" % key)
    print("File %s successfully converted to parquet, re-uploading to S3..." % key)
 
+   print("File conversion timestamp: ", time.time())
+
 # Folders do not actually exist on S3, must check for file in subdirectory.
 # If the parquet directory exists on S3, erase it and overwrite.
-   test_key_exist = subprocess.run('aws s3api head-object --bucket %s --key %s/%s.parquet/._SUCCESS' % (bucket,year,key),\
+   test_key_exist = subprocess.run('aws s3api head-object --bucket %s --key %s/%s.parquet/_SUCCESS' % (bucket,year,key),\
       shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
    test_key_exist2 = subprocess.run(\
       'aws s3api head-object --bucket %s --key %s/%s.parquet/._SUCCESS.crc' % (bucket,year,key),\
@@ -113,3 +104,25 @@ def convert(spark,month,year):
          os.system("aws s3 rm s3://%s/%s/%s.parquet --recursive" % (bucket,year,key))
    os.system("aws s3 cp /home/ubuntu/%s.parquet s3://%s/%s/%s.parquet --recursive" % (key,bucket,year,key))
    print("Bucket successfully converted to parquet and uploaded to S3!")
+
+   print("File upload timestamp: ", time.time())
+
+# Delete files
+   print("Deleting files /home/ubuntu/RC_* and /home/ubuntu/bigdrive/RC_* ...")
+   subprocess.run('rm -r /home/ubuntu/RC_*',shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+   subprocess.run('rm  /home/ubuntu/RC_*',shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+   subprocess.run('rm  /home/ubuntu/bigdrive/RC_*',shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+   print("Files deleted, conversion complete!")
+
+if __name__ == "__main__":
+
+#  Create the spark session
+   spark = SparkSession\
+     .builder\
+     .appName("convertToParquet")\
+     .getOrCreate()
+
+   month = sys.argv[1]
+   year = sys.argv[2]
+
+   convert(spark,month,year)

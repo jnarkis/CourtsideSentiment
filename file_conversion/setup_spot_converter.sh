@@ -38,6 +38,6 @@ ssh ubuntu@10.0.0.5 'sudo chown ubuntu /home/ubuntu/bigdrive'
 
 # Copy python scripts needed for file conversion
 scp convert_to_parquet.py ubuntu@10.0.0.5:/home/ubuntu
-scp ../libs/loadschema.py ubuntu@10.0.0.5:/home/ubuntu
+scp ../lib/loadschema.py ubuntu@10.0.0.5:/home/ubuntu
 
 echo 'Spot instance has been configured at 10.0.0.5.'
