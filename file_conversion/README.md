@@ -13,19 +13,19 @@ To set up the spot instance, run `./setup_spot_converter.sh`. Upon successful co
 The logs have timestamps at various portions of the conversion, so that the user can compare the conversion time with the query time of the original JSON files (if `.bz2` is the original format, currently the `.xz` and `.zst` data files must be converted for the script to work) to determine whether the conversion is necessary.
 
 ## Table of Contents
-1. [`aws_config.sh`](README.md#aws-configsh)
-1. [`convert_to_parquet.py`](README.md#convert-to-parquetpy)
-1. [`do_conversion.sh`](README.md#do-conversionsh)
-1. [`install_converter.sh`](README.md#install-convertersh)
-1. [`setup_spot_converter.sh`](README.md#setup-spot-convertersh)
+1. [`aws_config.sh`](README.md#aws_configsh)
+1. [`convert_to_parquet.py`](README.md#convert_to_parquetpy)
+1. [`do_conversion.sh`](README.md#do_conversionsh)
+1. [`install_converter.sh`](README.md#install_convertersh)
+1. [`setup_spot_converter.sh`](README.md#setup_spot_convertersh)
 
-## `aws-config.sh`
+## `aws_config.sh`
 Executes `aws configure` on spot instance using environment variables passed from the host instance. It is called on the spot instance by `setup_spot_converter.sh`.
 
-## `convert-to-parquet.py`
+## `convert_to_parquet.py`
 For a specified month and year, it determines whether the comment file is in `.bz2`, `.xz`, or `.zst` format, decompresses the file if necessary, and writes it to `.parquet` format. The result is reuploaded to the S3 bucket.
 
-## `do-conversion.sh`
+## `do_conversion.sh`
 This script will execute `convert-to-parquet.py` and requires 3 arguments: `type`: `month`,`year`, or `all`; `month`: [1-12] or [01-12], and `year`: [2005-2019]. This will run the script for a specific month/year, for a specific year, or for all data.
 
 ## `install_converter.sh`
