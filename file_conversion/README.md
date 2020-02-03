@@ -13,11 +13,11 @@ To set up the spot instance, run `./setup_spot_converter.sh`. Upon successful co
 The logs have timestamps at various portions of the conversion, so that the user can compare the conversion time with the query time of the original JSON files (if `.bz2` is the original format, currently the `.xz` and `.zst` data files must be converted for the script to work) to determine whether the conversion is necessary.
 
 ## Table of Contents
-1. [`aws_config.sh`](README.md#aws-config-sh)
-1. [`convert_to_parquet.py`](README.md#convert-to-parquet-py)
-1. [`do_conversion.sh`](README.md#do-conversion-sh)
-1. [`install_converter.sh`](README.md#install-converter-sh)
-1. [`setup_spot_converter.sh`](README.md#setup-spot-converter-sh)
+1. [`aws_config.sh`](README.md#aws-configsh)
+1. [`convert_to_parquet.py`](README.md#convert-to-parquetpy)
+1. [`do_conversion.sh`](README.md#do-conversionsh)
+1. [`install_converter.sh`](README.md#install-convertersh)
+1. [`setup_spot_converter.sh`](README.md#setup-spot-convertersh)
 
 ## `aws-config.sh`
 Executes `aws configure` on spot instance using environment variables passed from the host instance. It is called on the spot instance by `setup_spot_converter.sh`.
