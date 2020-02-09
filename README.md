@@ -1,5 +1,5 @@
-# SportsSemantics
-Sports Analytics with Semantic Analysis using Reddit
+# Courtside Sentiment
+A front-row seat to the opinions of Reddit!
 
 ## Table of Contents
 1. [Project Idea](README.md#project-idea)
