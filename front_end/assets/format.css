@@ -1,0 +1,30 @@
+*{
+  font-family: Verdana, Geneva, sans-serif;
+}
+
+a:link {
+    color: #356d7b
+}
+
+a:visited {
+  color: #558d9b
+}
+
+a:hover {
+    color: #ff9042
+}
+
+a:active {
+  color: #df7022
+}
+
+body {
+    margin: 0;
+    background-color: #07080a
+}
+
+h2{
+  font-family: Verdana, Geneva, sans-serif;
+  text-shadow: 1px 1px 1px black, 0 0 10px darkblue;
+    margin: 0;
+}

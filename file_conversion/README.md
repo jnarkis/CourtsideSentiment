@@ -1,5 +1,5 @@
 # File Conversion
-The raw data files from pushshift are in compressed JSON format. For faster querying, the scripts in this file do the following:
+The raw data files from pushshift are in compressed JSON format. For faster querying, the scripts in this directory do the following:
 
 1. Create a c5d.2xlarge EC2 spot instance.
 1. Use awscli and pyspark to copy files from the S3 bucket. 

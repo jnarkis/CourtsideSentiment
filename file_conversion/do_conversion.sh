@@ -9,10 +9,11 @@
 # Check for valid month and year format
 
 checkMonth() {
-   if [[ $1 =~ ^0[1-9]$ || $1 =~ ^[1-9]$ || $1 =~ ^1[1-2]$  ]]; then
+   if [[ $1 =~ ^0[1-9]$ || $1 =~ ^[1-9]$ || $1 =~ ^1[0-2]$  ]]; then
       : #valid month, do nothing
    else
-      echo 'Valid months are 01-09, 1-9, 11, or 12.'
+      echo 'Valid months are 01-09, 1-9, 10, 11, or 12.'
+      exit 0
    fi
 }
 
@@ -52,13 +53,13 @@ do_conversion() {
       do
          echo logs/convert_${y}_`printf %02d $m`.log
          echo 'Conversion start timestamp: '$(date)', '$(date +%s) | tee logs/convert_${y}_`printf %02d $m`.log
-         ssh ubuntu@10.0.0.5 "python3 convert_to_parquet.py $m $y" | tee -a logs/convert_${year}_`printf %02d $m`.log
-         echo 'Conversion finish timestamp: '$(date)', '$(date +%s) | tee -a logs/convert_${year}_`printf %02d $m`.log
+         ssh ubuntu@10.0.0.5 "python3 convert_to_parquet.py $m $y" | tee -a logs/convert_${y}_`printf %02d $m`.log
+         echo 'Conversion finish timestamp: '$(date)', '$(date +%s) | tee -a logs/convert_${y}_`printf %02d $m`.log
       done
    done
    else
       echo "Invalid run_mode, but this should have been caught already."
-      exit
+      exit 0
    fi
 }
 

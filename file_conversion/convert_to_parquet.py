@@ -62,6 +62,7 @@ def convert(spark,month,year):
       print("Decompressing .zst file...")
       subprocess.run('zstd -dc -T8 /home/ubuntu/%s.zst > /home/ubuntu/bigdrive/%s' % (key,key),shell=True)
       print("File decompressed.")
+      subprocess.run('rm /home/ubuntu/%s.zst' % key,shell=True)
 
    print("File decompression timestamp: ",time.time())
 

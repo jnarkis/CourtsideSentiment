@@ -5,42 +5,69 @@ from pyspark.sql import SQLContext
 from pyspark.sql.types import *
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer as sia
 
+import sys
+import os
+import time
+import subprocess
+
 #Locally defined functions
-import loadschema
+import loadschema as ls
 
 if __name__ == "__main__":
+
+   format=sys.argv[1] # bz2 or parquet
+   month=sys.argv[2].zfill(2) # month
+   year=sys.argv[3] # year
 
 #  Create the spark session, initialize contexts
    spark = SparkSession\
      .builder\
-     .appName("VaderREDDIT")\
+     .appName("VaderReddit")\
      .getOrCreate()
    conf = pyspark.SparkConf()
    sc = pyspark.SparkContext.getOrCreate(conf=conf)
    sqlContext = SQLContext(sc)
 
-   print("Contexts created, now loading data from s3 bucket...")
+   print("Contexts created, now loading data from s3 bucket. timestamp: %s" % time.time())
 
-#  Read a sample file from the s3 bucket
-#  The schema is consistent for reddit comment data, use it to speed up reading
-   redditschema = loadschema.redditSchema()
-   data = spark.read.schema(redditschema).parquet("s3a://seade20-reddit-comments/2015/RC_2015-01.parquet")
-#   data=spark.read.schema(redditschema).json("s3a://seade20-reddit-comments/2015/RC_2015-01.bz2")
-#   data = spark.read.schema(redditschema).parquet("s3a://seade20-reddit-comments/2019/RC_2019-09.parquet")
-#   data=sqlContext.read.schema(redditschema).format("orc").load("s3a://seade20-reddit-comments/2017/RC_2017-12.orc")
+   s3bucket = os.environ["S3_BUCKET"]
 
-   print("The data has been loaded from the S3 bucket!")
+   if (format == "parquet"):
+      file_exist_form_one = subprocess.run('aws s3api head-object --bucket %s --key %s/RC_%s-%s.%s/_SUCCESS'\
+                                        % (s3bucket,year,year,month,format),\
+                                          shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+      file_exist_form_two = subprocess.run('aws s3api head-object --bucket %s --key %s/RC_%s-%s.%s/._SUCCESS.crc'\
+                                        % (s3bucket,year,year,month,format),\
+                                          shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+   elif (format == "bz2"):
+      file_exist_form_one = subprocess.run('aws s3api head-object --bucket %s --key %s/RC_%s-%s.%s'\
+                                        % (s3bucket,year,year,month,format),\
+                                          shell=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+#      file_exist_form_two = 255 # 255 -> file does not exist
+   else:
+      print("Parquet or Bz2 input is required. Aborting.")
 
-#  Perform the SQL query -- find all comments that mention Lebron James
+   if (file_exist_form_one.returncode == 0 or file_exist_form_two.returncode == 0):
+      print("Reading %s data for %s/%s" % (format,month,year))
+      if (format == "parquet"):
+         data = spark.read.schema(ls.redditSchema3()).parquet("s3a://%s/%s/RC_%s-%s.parquet" % (s3bucket,year,year,month))
+      else: # (format == "bz2")
+         data = spark.read.schema(ls.redditSchema3()).json("s3a://%s/%s/RC_%s-%s.bz2" % (s3bucket,year,year,month))
+   else:
+      print("S3 bucket of %s format for %s/%s does not exist. Aborting." % (format,month,year))
+      sys.exit()
+
+   print("S3 bucket found, loading data...")
+#  Perform the SQL query -- find all comments that mention player James
    data.createOrReplaceTempView('sqldata')
 #   sqlContext = SQLContext(sc)
-   lebron=sqlContext.sql("select author,body,created_utc,subreddit from sqldata where body like '%%'").collect()
-
-   print("Lebron has been queried, prepare to be VADERED!")
-
+   print("Lazy eval up to this point, now doing 'collect()' for query...")
+   player=sqlContext.sql("select author,body,created_utc,score,subreddit from sqldata where body like '%Steph Curry%'").collect()
+#         player=data.select("author","body","created_utc","subreddit").filter(data.body.rlike("|".join(lakers_list))).collect()
+   print("Data loaded and queried... doing sentiment analysis.")
+   print("Query complete timestamp: %s" % time.time())
 #  Set up the sentiment intensity analyzer
    vader = sia()
-
 #  Initialize lists that will be written to the output DataFrame
    author = []
    bodies = []
@@ -50,14 +77,16 @@ if __name__ == "__main__":
    neu = []
    neg = []
    comp = []
+   score =[]
 
 #  Extract the relevant information from each row and do sentiment analysis on 'body', i.e. the comment
-   for row in lebron:
+   for row in player:
 #     This is raw comment data
       author.append(row.author)
       bodies.append(row.body)
       posttime.append(row.created_utc)
       subreddit.append(row.subreddit)
+      score.append(row.score)
 #     This is from sentiment analysis, vc is a dictionary of the form {'pos': X, 'neu': Y, 'neg': Z, 'compound': C}
 #     where X, Y, and Z are doubles between 0 and 1, and C is a double between -1 and 1
       vc = vader.polarity_scores(row.body)
@@ -65,17 +94,26 @@ if __name__ == "__main__":
       neu.append(vc['neu'])
       neg.append(vc['neg'])
       comp.append(vc['compound'])
-
 #  Create the schema for the output DataFrame
-   schema = StructType([StructField('author',StringType(),True), StructField('body',StringType(),True), StructField('posttime',StringType(),True),\
-      StructField('subreddit',StringType(),True),StructField('pos',DoubleType(),True),StructField('neu',DoubleType(),True),StructField('neg',DoubleType(),True),\
-      StructField('comp',DoubleType(),True)])
+   schema = StructType([StructField('author',StringType(),True), StructField('body',StringType(),True),\
+          StructField('posttime',StringType(),True),\
+          StructField('score',LongType(),True),\
+          StructField('subreddit',StringType(),True),\
+          StructField('pos',DoubleType(),True),StructField('neu',DoubleType(),True),StructField('neg',DoubleType(),True),\
+          StructField('comp',DoubleType(),True)])
 
 #  Create the output DataFrame
-   out_df = spark.createDataFrame(zip(author,bodies,posttime,subreddit,pos,neu,neg,comp),schema)
+   out_df = spark.createDataFrame(zip(author,bodies,posttime,score,subreddit,pos,neu,neg,comp),schema)
 
 #  Write the output DataFrame to PostgreSQL
-   out_df_properties = {"user" : "postgres", "password" : "API5tl5VktcxEaJk1HMX", "driver":"org.postgresql.Driver"}
-   out_df.write.jdbc(url="jdbc:postgresql://database-1.c9z5u98esvku.us-west-2.rds.amazonaws.com:5432/",table="lebron_201501",mode="overwrite",properties=out_df_properties)
+   print("Sentiment analysis performed and written to new dataframe... saving to PostgreSQL database...")
+   print("Sentiment analysis timestamp: %s" % time.time())
+   out_df_properties = {"user" : os.environ["AWS_RDS_POSTGRES_USER"], "password" : os.environ["AWS_RDS_POSTGRES_PWD"], "driver":"org.postgresql.Driver"}
+
+   out_df.write.jdbc(url="jdbc:postgresql://%s:5432/" % os.environ["AWS_RDS_POSTGRES_ENDPT"],\
+         table="steph_%s%s" % (year,month)\
+       ,mode="overwrite",properties=out_df_properties)
+
+   print("Data saved to PostgreSQL database. timestamp: %s" % time.time())
 
    spark.stop()

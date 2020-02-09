@@ -1,182 +1,260 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
-import plotly.graph_objs as go
-
-import pyspark
-from pyspark.sql import SparkSession
-from pyspark.sql import SQLContext
-from pyspark.sql.types import *
-from pyspark.sql import DataFrameReader
-
-import plotly.express as px
-import plotly.graph_objects as go
+import dash_table
+from dash.dependencies import Input, Output,State
+from dash.exceptions import PreventUpdate
 
 import pandas as pd
 import numpy as np
 
-import sys
+import os
+
+from sqlalchemy import create_engine
 
 from datetime import datetime
+from datetime import date
 
-app = dash.Dash()
 
-spark = SparkSession.builder.appName("DashSpark").config("spark.jars","/home/ubuntu/postgresql-42.2.9.jar").getOrCreate()
-#app.layout = html.Div(children=[ dcc.Input(id='input', value='Enter something', type='text'),
-#   html.Div(id='output')
-#   ])
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-#@app.callback(
-#   Output(component_id='output', component_property='children'),
-#   [Input(component_id='input', component_property='value')])
+engine = create_engine('postgresql://'+os.environ["AWS_RDS_POSTGRES_USER"]+\
+                        ':'+os.environ["AWS_RDS_POSTGRES_PWD"]+'@'\
+                        +os.environ["AWS_RDS_POSTGRES_ENDPT"]+':5432/')
 
-#def update_value(input_data):
-#   try:
-#      return str(float(input_data)**2)
-#   except:
-#      return "error"
-
-conf = pyspark.SparkConf()
-sc = pyspark.SparkContext.getOrCreate(conf=conf)
-sqlContext = SQLContext(sc)
-
-in_df_properties = {"user" : "postgres", "password" : "API5tl5VktcxEaJk1HMX", "driver":"org.postgresql.Driver"}
-
-in_df = DataFrameReader(sqlContext).jdbc(url="jdbc:postgresql://database-1.c9z5u98esvku.us-west-2.rds.amazonaws.com:5432/",table="lebron_2018",properties=in_df_properties)
-
-in_dfc = in_df.select("posttime","comp","body")
-in_dfc = in_dfc.filter(in_dfc.comp != 0).orderBy("posttime").collect()
-
-posttimes = [datetime.fromtimestamp(int(row.posttime)) for row in in_dfc]
-scores = [row.comp for row in in_dfc]
-body = [row.body for row in in_dfc]
+plot_df = pd.read_sql('SELECT posttime,comp,body,score,subreddit FROM lebron_master_sorted',engine)
 
 def moving_average(values,window):
    weights = np.repeat(1.0,window)/window
    smas = np.convolve(values,weights,'valid')
    return smas
 
+colors = {
+'background': '#07080a',
+'text' : '#d6d8da',
+'plotbg' : '#c6c8ca',
+'gridline' : '#b6b8ba',
+'headertext' : '#df6e22'
+}
 
-#in_df.show()
+app.layout =\
+ html.Div(children=[
+   html.H2('Courtside Sentiment',
+           style={'textAlign': 'center','color' : colors['text'], 'font-weight' : 'bold'}),
+   html.H5('A front-row seat to the opinions of Reddit',
+           style={'textAlign': 'center','color' : colors['text'], 'font-weight' : 'normal','margin-bottom':10}),
+   html.Div(id='left_pad_placeholder',style={'width' : '1.25%', 'display' : 'inline-block'}),
+   html.Div(children=[
+       html.Div('Player selection:',style={'color' : colors['text'], 'fontSize' : 12, 'margin-bottom': 5}),
+       dcc.Dropdown(id='player',
+           options=[
+              {'label' : 'Lebron James', 'value' : 'lebron+james'},
+              {'label' : 'Kevin Durant', 'value' : 'kevin+durant'},
+              {'label' : 'James Harden', 'value' : 'james+harden'},
+              {'label' : 'Anthony Davis', 'value': 'anthony+davis'},
+           ],
+           value='lebron+james',
+           style={'fontSize' : 12, 'fontColor' : colors['text']}),
+       html.Div('Sentiment score metric:',style={'color' : colors['text'], 'fontSize' : 12, 'margin-top' : 5,'margin-bottom' : 5}),
+       dcc.Dropdown(id='vader_metric',
+           options=[
+              {'label' : 'Positive', 'value' : 'pos'},
+              {'label' : 'Neutral', 'value' : 'neu'},
+              {'label' : 'Negative', 'value' : 'neg'},
+              {'label' : 'Compound', 'value' : 'comp'}
+            ],
+            value = 'comp',
+            style={'fontSize' : 12, 'fontColor' : colors['text']}
+       ),
 
-#fig = go.Figure(data=[go.Scatter(x=posttimes, y=scores)])
+       html.Div('Selected date range for plot:',style={'color' : colors['text'], 'fontSize' : 12, 'margin-top' : 5,'margin-bottom' : 5}),
+       dcc.DatePickerRange(id='date-window-plot',
+                              start_date='2017-01-01',
+                              end_date='2017-12-31',
+                           style={'color' : colors['text'], 'fontSize' : 12},
+                          ),
 
-#data = px.data.gapminder()
-#fig = px.scatter(x=posttimes,y=scores,hovertext=body)
-fig = go.Figure(data=go.Scatter(x=posttimes,y=scores,mode='markers')) # ,layout={'yaxis' : [Range,(-1,1)] }) #,hovertext=body))
-#fig.update_yaxes(range[-1,1])
+       html.Div('Selected date for getting more info:',style={'color' : colors['text'], 'fontSize' : 12, 'margin-top' : 5, 'margin-bottom' : 5}),
 
-fig.update_layout(yaxis = dict(range = [-1,1], constrain = 'domain'))
+       html.Div(children=[
+          dcc.DatePickerSingle(id='querydate',
+          style={'fontSize' : 12, 'display':'inline-block'}),
 
-#fig.update_layout(yaxis = dict(range[-1,1]))
+          html.Div(children=[
+             html.Button('Get comments',id='get_comments_button',style={'height':41,'fontSize' : 10,'width':160},n_clicks=0)
+          ],
+          style={'display':'inline-block','margin-left' : 5})
 
-app.layout = html.Div(children=[html.H1('Sports Sentiment Analysis'),
-   dcc.Dropdown(id='wow',
-      options=[
-         {'label' : 'Lebron James', 'value' : 'lebron'},
-         {'label' : 'Kevin Durant', 'value' : 'kevin'},
-      ],
-      value='lebron'
+       ]),
+
+       html.Div(id='print-links', style={'color' : colors['text'], 'fontSize' : 12,'margin-top' : 5, 'margin-bottom' : 5})
+
+          ],
+          style={'width': '25%','display':'inline-block','vertical-align': 'middle'},
+          ),
+
+
+
+   html.Div(id='white_space',style={'width' : '1.25%','display':'inline-block'}),
+
+   html.Div(
+           dcc.Graph(id='example',figure={
+                 'data': [dict(x=(plot_df['posttime'].astype('int')-28800).astype('datetime64[s]'),
+                                 y=moving_average(plot_df['comp'],50),
+                                 line={'color': '#356d7b','width':'2'}
+                         )],
+                 'layout': { 'margin' : {'t' : 10,'l' : 70,'r': 10,'b':55},
+                             'plot_bgcolor' :  colors['plotbg'],
+                             'paper_bgcolor' : colors['background'],
+                             'height' : 310,
+                             'xaxis' : {'title' : {'text' : 'Date', 'font' : {'size' : 24, 'color' : colors['text']}},
+                                        'color' : colors['text'],
+                                        'range' : [datetime(2017,1,1),datetime(2017,12,31,23,59,59)],
+					'ticklen' : 4,
+                                        'tickcolor' : colors['background'],
+                                        'showgrid':'true',
+                                        'gridcolor' : colors['gridline'],
+                                        'gridwidth' : 1,
+                                        'zerolinecolor' : colors['gridline'],
+                                        'zerolinewidth' : 3,
+                             },
+                             'yaxis' : {'title' : {'text' : 'Average score', 'font' : {'size' : 24, 'color' : colors['text']}},
+                                        'color' : colors['text'],
+                                        'range' : [-1,1],
+                                        'tickvals' : [-1,-0.8,-0.6,-0.4,-0.2,0,0.2,0.4,0.6,0.8,1],
+                                        'ticklen' : 3,
+                                        'tickcolor' : colors['background'],
+                                        'showgrid':'true',
+                                        'gridcolor' : colors['gridline'],
+                                        'gridwidth' : 1,
+                                        'zerolinecolor' : colors['gridline'],
+                                        'zerolinewidth' : 3,
+                             }
+                           }
+           },
+           ),
+      style={'width' : '70%','display':'inline-block','vertical-align': 'top', 'border' : '3px #00213c solid', 'border-radius' : '2px' }
    ),
-   dcc.Dropdown(id='year',
-      options=[
-        {'label' : '2005', 'value' : '2005'},
-        {'label' : '2006', 'value' : '2006'},
-        {'label' : '2007', 'value' : '2007'},
-        {'label' : '2008', 'value' : '2008'},
-        {'label' : '2009', 'value' : '2009'},
-        {'label' : '2010', 'value' : '2010'},
-        {'label' : '2011', 'value' : '2011'},
-        {'label' : '2012', 'value' : '2012'},
-        {'label' : '2013', 'value' : '2013'},
-        {'label' : '2014', 'value' : '2014'},
-        {'label' : '2015', 'value' : '2015'},
-        {'label' : '2016', 'value' : '2016'},
-        {'label' : '2017', 'value' : '2017'},
-        {'label' : '2018', 'value' : '2018'},
-        {'label' : '2019', 'value' : '2019'},
-      ],
-      value='2017',
-   ),
-   dcc.Dropdown(id='vader_metric',
-      options=[
-        {'label' : 'Positive', 'value' : 'pos'},
-        {'label' : 'Neutral', 'value' : 'neu'},
-        {'label' : 'Negative', 'value' : 'neg'},
-        {'label' : 'Compound', 'value' : 'comp'}
-      ],
-      value = 'comp'
-   ),
-   dcc.Dropdown(id='plot_type',
-      options=[
-        {'label' : 'Scatter plot', 'value' : 'scatter'},
-        {'label' : 'Moving average', 'value' : 'mov_avg'},
-      ],
-      value = 'mov_avg'
-   ),
-   dcc.Graph(id='example',
-      figure=fig)
-   ])
+
+   html.Div(
+      dash_table.DataTable(
+      id='comment_table',
+      columns=[{'name' : 'score', 'id' : 'score'},
+               {'name' : 'subreddit', 'id' : 'subreddit'},
+               {'name' : 'body', 'id' : 'body'}],
+      style_table={'overflowY':'scroll','maxHeight':'275px','border' : '3px solid #00213c'},
+      style_header={'backgroundColor' : '#356d7b','color':colors['text'],'fontSize':12},
+      style_cell={
+         'backgroundColor' : colors['plotbg'],'fontSize':10, 'border' : '1px solid #00213c'
+      },
+      style_data={
+        'whiteSpace': 'normal',
+      }
+      )
+      ,style={'width':'96.75%','display':'inline-block','padding-left':'1.25%'}),
+
+   ] #end children
+   , style={'backgroundColor':colors['background'],'layout' : {'margin' : 0}}
+
+)
+
+@app.callback(Output('comment_table','data'), [Input('get_comments_button','n_clicks')],
+   [State('querydate','date'),State('player','value')])
+
+def populate_comment_table(n_clicks,querydate_date,player_value):
+   if n_clicks is None or querydate_date is None:
+      raise PreventUpdate
+   else:
+      if n_clicks > 0:
+         table_df = pd.read_sql('SELECT posttime,score,subreddit,body FROM %s_master_sorted' % player_value.split('+')[0],engine)
+         date_to_match = datetime.strptime(querydate_date,'%Y-%m-%d').date()
+         wrongdate = table_df[ pd.to_datetime(table_df['posttime'],unit='s').dt.date != date_to_match].index
+         table_df.drop(wrongdate,inplace=True)
+         table_df.drop(columns='posttime',inplace=True)
+         print(table_df)
+         return table_df.sort_values(by=['score'],ascending=False).to_dict('rows')
+
+@app.callback(Output('print-links','children'),[Input('querydate','date'),\
+      Input('player','value')])
+
+def print_links_on_click(querydate_date,value):
+   print('print_links_on_click')
+   if querydate_date is None:
+      raise PreventUpdate
+   else:
+        #generate query string
+        two = datetime.strptime(querydate_date,"%Y-%m-%d")
+        #print(type(two.month),type(two.day),type(two.year))
+        part_two = '%s/%s/%s' % (str(two.month).zfill(2),str(two.day).zfill(2),str(two.year))
+        #print(part_two)
+
+        return  html.Div([html.A('Google search',href='https://www.google.com/search?q="%s"+%s'
+              % (value,part_two),target='_blank'),
+                html.Br(),
+                html.A('NBA games played on %s' % part_two,\
+                href='https://www.basketball-reference.com/boxscores/?month=%s&day=%s&year=%s'
+                     % (str(two.month),str(two.day),str(two.year)),target='_blank')
+                ])
+
+@app.callback(Output('querydate','date'),[Input('example','clickData')] )
+
+def print_something(clickData):
+    print('print_something')
+    if clickData is not None:
+       try: #sometimes seconds are not there
+         date_Clicked = datetime.strptime(clickData['points'][0]['x'],"%Y-%m-%d %H:%M:%S")
+       except:
+         date_Clicked = datetime.strptime(clickData['points'][0]['x'],"%Y-%m-%d %H:%M")
+       #only return day, month, and year
+       return date(date_Clicked.year,date_Clicked.month,date_Clicked.day)
 
 @app.callback(
-   Output('example','figure'),[Input('wow','value'), Input('year','value'), Input('vader_metric','value'),\
-      Input('plot_type','value')
-   ])
+   Output('example','figure'),[Input('player','value'), Input('vader_metric','value'),
+    Input('date-window-plot','start_date'),Input('date-window-plot','end_date')])
 
-def update_graph(wow_value,year_value,vader_metric_value,plot_type_value):
-   in_df = DataFrameReader(sqlContext).jdbc(url="jdbc:postgresql://database-1.c9z5u98esvku.us-west-2.rds.amazonaws.com:5432/",\
-      table="%s_%s" % (wow_value,year_value),properties=in_df_properties)
 
-   in_dfc = in_df.select("posttime","pos","neu","neg","comp","body")
+def change_graph_data(player_value,vader_metric_value,start_date,end_date):
+   print('change_graph_data')
+   plot_df = pd.read_sql('SELECT posttime,pos,neu,neg,comp FROM %s_master_sorted' % player_value.split('+')[0],engine)
+   start_date_conv = datetime.strptime(start_date,'%Y-%m-%d')
+   end_date_conv = datetime.strptime(end_date,'%Y-%m-%d')
 
-   in_dfc = in_dfc.filter(in_dfc.comp != 0).orderBy("posttime").collect()
-
-   posttimes = [datetime.fromtimestamp(int(row.posttime)) for row in in_dfc]
-   scores = [row[vader_metric_value] for row in in_dfc]
-   body = [row.body for row in in_dfc]
-   #fig.update_layout(
-   #yax/is = dict(
-   #   range[-1,1]
-   #   )
-   #)
-
-   #fig.update_layout(yaxis = dict(range = [-1,1], constrain = 'domain'))
-
-   if (plot_type_value == 'scatter'):
-      return {'data': [{'x': posttimes, 'y': scores, 'mode': 'markers'}]} #, 'hovertext' :  body}]}
-   else:
-      return {'data': [{'x': posttimes, 'y': moving_average(scores,50),'mode' : 'lines'}]}
-
-#go.Scatter(x=posttimes,y=scores,mode='markers',hovertext=body)}
-
-#def update_graph(wow_value,year_value):
-#     type(wow_value)
-#     type(year_value)
-#     in_df = DataFrameReader(sqlContext).jdbc(url="jdbc:postgresql://database-1.c9z5u98esvku.us-west-2.rds.amazonaws.com:5432/",table="%s_%s" % (wow_value,year_value),properties=in_df_properties)
-#     in_dfc = in_df.select("posttime","comp","body").collect()
-#     posttimes = [datetime.fromtimestamp(int(row.posttime)) for row in in_dfc]
-#     scores = [row.comp for row in in_dfc]
-#     body = [row.body for row in in_dfc]
-
-#     return {}
-
-#go.Scatter(x=posttimes,y=scores,mode='markers',hovertext=body)}
-
-#     print("query redone")
-
-#     fig = go.Figure(data=go.Scatter(x=posttimes,y=scores,mode='markers',hovertext=body))
-#     dcc.Graph(id='example',figure=fig)
-
-     
-#   dash.dependencies.Output('container','children'),
-#   [dash.dependencies.Input('wow','value')])
-#def update_output(value):
-#   return 'You have selected "{}"'.format(value)
-
-#fig.update_layout(
-#   updatemenus=[
-#)
+   return  {
+                 'data': [dict(x=(plot_df['posttime'].astype('int')-28800).astype('datetime64[s]'),
+                                 y=moving_average(plot_df['%s' % vader_metric_value],50),
+                                 line={'color': '#356d7b','width':'2'}
+                         )],
+                 'layout': { 'margin' : {'t' : 10,'l' : 70,'r': 10,'b':55},
+                             'plot_bgcolor' :  colors['plotbg'],
+                             'paper_bgcolor' : colors['background'],
+                             'height' : 310,
+                             'xaxis' : {'title' : {'text' : 'Date', 'font' : {'size' : 24, 'color' : colors['text']}},
+                                        'color' : colors['text'],
+                                        'range' : [start_date_conv,
+                                                   datetime(end_date_conv.year,end_date_conv.month,end_date_conv.day,23,59,59)],
+                                        'ticklen' : 4,
+                                        'tickcolor' : colors['background'],
+                                        'showgrid':'true',
+                                        'gridcolor' : colors['gridline'],
+                                        'gridwidth' : 1,
+                                        'zerolinecolor' : colors['gridline'],
+                                        'zerolinewidth' : 3,
+                             },
+                             'yaxis' : {'title' : {'text' : 'Average score', 'font' : {'size' : 24, 'color' : colors['text']}},
+                                        'color' : colors['text'],
+                                        'range' : [-1,1],
+                                        'tickvals' : [-1,-0.8,-0.6,-0.4,-0.2,0,0.2,0.4,0.6,0.8,1],
+                                        'ticklen' : 3,
+                                        'tickcolor' : colors['background'],
+                                        'showgrid':'true',
+                                        'gridcolor' : colors['gridline'],
+                                        'gridwidth' : 1,
+                                        'zerolinecolor' : colors['gridline'],
+                                        'zerolinewidth' : 3,
+                             }
+                           }
+                 }
 
 if __name__ == "__main__":
    app.run_server(host="0.0.0.0",port=8050,debug=False)
