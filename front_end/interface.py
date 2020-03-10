@@ -23,7 +23,7 @@ engine = create_engine('postgresql://'+os.environ["AWS_RDS_POSTGRES_USER"]+\
                         ':'+os.environ["AWS_RDS_POSTGRES_PWD"]+'@'\
                         +os.environ["AWS_RDS_POSTGRES_ENDPT"]+':5432/')
 
-plot_df = pd.read_sql('SELECT posttime,comp,body,score,subreddit FROM lebron_master_sorted',engine)
+plot_df = pd.read_sql('SELECT posttime,comp,body,score,subreddit FROM kevin_master_sorted',engine)
 
 def moving_average(values,window):
    weights = np.repeat(1.0,window)/window
@@ -53,8 +53,10 @@ app.layout =\
               {'label' : 'Kevin Durant', 'value' : 'kevin+durant'},
               {'label' : 'James Harden', 'value' : 'james+harden'},
               {'label' : 'Anthony Davis', 'value': 'anthony+davis'},
+              {'label' : 'Steph Curry', 'value' : 'steph+curry'},
+              {'label' : 'Kawhi Leonard', 'value': 'kawhi+leonard'},
            ],
-           value='lebron+james',
+           value='kevin+durant',
            style={'fontSize' : 12, 'fontColor' : colors['text']}),
        html.Div('Sentiment score metric:',style={'color' : colors['text'], 'fontSize' : 12, 'margin-top' : 5,'margin-bottom' : 5}),
        dcc.Dropdown(id='vader_metric',
@@ -71,7 +73,7 @@ app.layout =\
        html.Div('Selected date range for plot:',style={'color' : colors['text'], 'fontSize' : 12, 'margin-top' : 5,'margin-bottom' : 5}),
        dcc.DatePickerRange(id='date-window-plot',
                               start_date='2017-01-01',
-                              end_date='2017-12-31',
+                              end_date='2018-12-31',
                            style={'color' : colors['text'], 'fontSize' : 12},
                           ),
 
@@ -100,7 +102,7 @@ app.layout =\
 
    html.Div(
            dcc.Graph(id='example',figure={
-                 'data': [dict(x=(plot_df['posttime'].astype('int')-28800).astype('datetime64[s]'),
+                 'data': [dict(x=(plot_df['posttime'].astype('int')).astype('datetime64[s]'),
                                  y=moving_average(plot_df['comp'],50),
                                  line={'color': '#356d7b','width':'2'}
                          )],
@@ -110,7 +112,7 @@ app.layout =\
                              'height' : 310,
                              'xaxis' : {'title' : {'text' : 'Date', 'font' : {'size' : 24, 'color' : colors['text']}},
                                         'color' : colors['text'],
-                                        'range' : [datetime(2017,1,1),datetime(2017,12,31,23,59,59)],
+                                        'range' : [datetime(2017,1,1),datetime(2018,12,31,23,59,59)],
 					'ticklen' : 4,
                                         'tickcolor' : colors['background'],
                                         'showgrid':'true',
@@ -159,6 +161,9 @@ app.layout =\
 
 )
 
+# When the get comments button is clicked, load the Reddit comments mentioning that player on that day,
+# ranked by score (upvotes - downvotes)
+
 @app.callback(Output('comment_table','data'), [Input('get_comments_button','n_clicks')],
    [State('querydate','date'),State('player','value')])
 
@@ -172,22 +177,21 @@ def populate_comment_table(n_clicks,querydate_date,player_value):
          wrongdate = table_df[ pd.to_datetime(table_df['posttime'],unit='s').dt.date != date_to_match].index
          table_df.drop(wrongdate,inplace=True)
          table_df.drop(columns='posttime',inplace=True)
-         print(table_df)
          return table_df.sort_values(by=['score'],ascending=False).to_dict('rows')
+
+# When a date is selected for querying further, print out some useful links. The first
+# link is a Google search for the player on the selected date, the second checks if any NBA games are played then
 
 @app.callback(Output('print-links','children'),[Input('querydate','date'),\
       Input('player','value')])
 
 def print_links_on_click(querydate_date,value):
-   print('print_links_on_click')
    if querydate_date is None:
       raise PreventUpdate
    else:
         #generate query string
         two = datetime.strptime(querydate_date,"%Y-%m-%d")
-        #print(type(two.month),type(two.day),type(two.year))
         part_two = '%s/%s/%s' % (str(two.month).zfill(2),str(two.day).zfill(2),str(two.year))
-        #print(part_two)
 
         return  html.Div([html.A('Google search',href='https://www.google.com/search?q="%s"+%s'
               % (value,part_two),target='_blank'),
@@ -197,10 +201,11 @@ def print_links_on_click(querydate_date,value):
                      % (str(two.month),str(two.day),str(two.year)),target='_blank')
                 ])
 
+# Click on the plot on a date of interest, put that date in the search field
+
 @app.callback(Output('querydate','date'),[Input('example','clickData')] )
 
-def print_something(clickData):
-    print('print_something')
+def pick_date_from_plot(clickData):
     if clickData is not None:
        try: #sometimes seconds are not there
          date_Clicked = datetime.strptime(clickData['points'][0]['x'],"%Y-%m-%d %H:%M:%S")
@@ -209,19 +214,20 @@ def print_something(clickData):
        #only return day, month, and year
        return date(date_Clicked.year,date_Clicked.month,date_Clicked.day)
 
+
+# When the player, Vader metric, start date, or end date is updated, change the plot to reflect that.
+
 @app.callback(
    Output('example','figure'),[Input('player','value'), Input('vader_metric','value'),
     Input('date-window-plot','start_date'),Input('date-window-plot','end_date')])
 
-
 def change_graph_data(player_value,vader_metric_value,start_date,end_date):
-   print('change_graph_data')
    plot_df = pd.read_sql('SELECT posttime,pos,neu,neg,comp FROM %s_master_sorted' % player_value.split('+')[0],engine)
    start_date_conv = datetime.strptime(start_date,'%Y-%m-%d')
    end_date_conv = datetime.strptime(end_date,'%Y-%m-%d')
 
    return  {
-                 'data': [dict(x=(plot_df['posttime'].astype('int')-28800).astype('datetime64[s]'),
+                 'data': [dict(x=(plot_df['posttime'].astype('int')).astype('datetime64[s]'),
                                  y=moving_average(plot_df['%s' % vader_metric_value],50),
                                  line={'color': '#356d7b','width':'2'}
                          )],
