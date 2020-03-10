@@ -1,3 +1,13 @@
+## This python script will perform the sentiment analysis on one month of Reddit comment data using the syntax:
+## python vaderReddit.py <format> <month> <year>
+## where <format> is bz2 or parquet, <month> is 1-12, and year is 2005-2019
+#
+## The script will load the appropriate month file from S3, query the data,
+## and save the results to a Postgres database
+#
+## Print statements of timestamps are included for log files, if the routine is called by the
+## do_sentiment_analysis.sh script.
+
 #External modules
 import pyspark
 from pyspark.sql import SparkSession
@@ -10,7 +20,8 @@ import os
 import time
 import subprocess
 
-#Locally defined functions
+#Load loadschema from ../lib/ so schema can be inferred
+sys.path.append('../lib/')
 import loadschema as ls
 
 if __name__ == "__main__":
@@ -58,12 +69,11 @@ if __name__ == "__main__":
       sys.exit()
 
    print("S3 bucket found, loading data...")
-#  Perform the SQL query -- find all comments that mention player James
+#  Perform the SQL query -- find all comments that mention player,
    data.createOrReplaceTempView('sqldata')
 #   sqlContext = SQLContext(sc)
    print("Lazy eval up to this point, now doing 'collect()' for query...")
    player=sqlContext.sql("select author,body,created_utc,score,subreddit from sqldata where body like '%Steph Curry%'").collect()
-#         player=data.select("author","body","created_utc","subreddit").filter(data.body.rlike("|".join(lakers_list))).collect()
    print("Data loaded and queried... doing sentiment analysis.")
    print("Query complete timestamp: %s" % time.time())
 #  Set up the sentiment intensity analyzer
