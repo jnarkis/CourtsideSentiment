@@ -7,31 +7,17 @@ There are three main sections of the interface: the parameter selection, the plo
 
 ## Table of Contents
 
-1. [Parameter selection][(README.md#parameter_selection)]
-1. Plot window
-1. Comment table
-
-1. [`aws_config.sh`](README.md#aws_configsh)
-1. [`convert_to_parquet.py`](README.md#convert_to_parquetpy)
-1. [`do_conversion.sh`](README.md#do_conversionsh)
-1. [`install_converter.sh`](README.md#install_convertersh)
-1. [`setup_spot_converter.sh`](README.md#setup_spot_convertersh)
+1. [Parameter selection](README.md#parameter_selection)
+1. [Plot window](README.md#plot_window)
+1. [Comment table](README.md#comment_table)
 
 ## Parameter selection
-Executes `aws configure` on spot instance using environment variables passed from the host instance. It is called on the spot instance by `setup_spot_converter.sh`.
+There are several parameters available to the user for selecting what data to explore. Player selection includes a list of popular NBA players: Lebron James, Kevin Durant, James Harden, Anthony Davis, Steph Curry, and Kawhi Leonard.  The sentiment score metric is one of the scores obtained from the [VADER sentiment analysis](https://github.com/cjhutto/vaderSentiment).  Each reddit comment contains positive, neutral, and negative words of varying sentimal strength.  A corresponding score for each type of word is assigned to each comment, as well as a 'compound' score that is an aggregate metric. 
+Users can also select a date range for the plot window, discussed in the next section.
+Finally, the user can select a certain date of interest on the plot, and then click 'Get comments' to get all the Reddit comments that mention a particular player on a particular day, and populate the comment table. In addition, two links for more information are generated: the first is a Google search of the player and date, and the second is a link to all NBA games played on the selected date.
 
 ## Plot window
-For a specified month and year, it determines whether the comment file is in `.bz2`, `.xz`, or `.zst` format, decompresses the file if necessary, and writes it to `.parquet` format. The result is reuploaded to the S3 bucket.
+The plot window displays the moving average of the sentiment score (with a window of 50) for the selected player, metric, and date range. The plot is a [Dash graph object](https://dash.plot.ly/dash-core-components/graph) that has many useful features, like zooming and point selection.
 
 ## Comment table
-This script will execute `convert-to-parquet.py` and requires 3 arguments: `type`: `month`,`year`, or `all`; `month`: [1-12] or [01-12], and `year`: [2005-2019]. This will run the script for a specific month/year, for a specific year, or for all data.
-
-## `install_converter.sh`
-This script installs the necessary packages to run pyspark and AWSCLI on the spot instance, as well as decompress input files. It is called on the spot instance by `setup_spot_converter.sh`.
-
-## `setup_spot_converter.sh`
-This script requests the spot instance and configures it for `convert-to-parquet.py`. In addition to setting up PySpark and awscli, it also formats and mounts the 200 GB drive that comes with a c5d.2xlarge instance. It also copies the scripts `convert_to_parquet.py` and `load_schema.py` to the spot instance.
-
-
-
-
+The comment table is initially empty, so to populate the list select a player and date and click 'Get Comments'. The table is then populated by the list of all Reddit comments that mention the selected player on the selected date, sorted in descending order by score. If the user has identified a date of interest where many Reddit users expressed strong sentiment about a player, then reading through the comments might provide some insight as to a particular event they are discussing.
