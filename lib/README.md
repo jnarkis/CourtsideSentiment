@@ -1,0 +1,3 @@
+This directory is intended to hold any useful files called by multiple python scripts. Currently it only contains `loadschema.py`, which contains several schemas for Reddit comment data. This was most useful in the initial stages of the project, when all the data was in `bz2` and it became apparent that the schema of the raw JSON files was modified over the years.
+
+For example, the `archived`, `downs`,`name`, and `score_hidden` fields were added between schema versions 1 and 2, and in version 3 `removal_reason` was added. For all of the data files (2005-2019), inferring schema version 3 was used successfully.  Other formats are unused and kept so the user can see what changes were made.
