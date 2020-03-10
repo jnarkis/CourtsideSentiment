@@ -26,10 +26,12 @@ The pipeline can be thought of as one large batch job broken down into smaller p
 While all of the raw data files are in compressed JSON format, only the `.bz2` files can be easily read into PySpark. The other file formats had to be converted from `.xz` and `.zst` into a more useable format. The first approach was to convert all these files into `.bz2` format, which in total took about 24 hours on a single c5d_2xlarge AWS instance. A spot instance was used to save money on a computationally-intensive task that only needed to be completed once per file.
 
 Querying the data in compressed JSON format (bz2) worked well for the smaller files, but for larger files it became prohibitively expensive timewise. The solution was to convert all the data to compressed `.parquet` format, which decreased querying time by a factor of 10 due to the columnar file format.  This resulted in significant time savings for the larger `.xz` and `.zst` files that had to be converted anyway, but incurred an extra time cost for the smaller files, as shown below.
+
 ![](querytime.png)
 
 ## Minimum viable product
 The end result for the MVP can be seen in the [front end directory]() - a moving average sentiment is calculated for several NBA players over a specified date range. The plot allows users to select a certain date to get more information about a discrete event that led to a large shift in sentiment. Shown below is an example, in which CourtsideSentiment identified a discrete event for Lebron James on 09/23/2017.  As reflected in the Reddit comments on that day, this event was a Twitter fight with the President!
+
 ![](front_end/screenshot.png)
 
 ## Stretch goals
