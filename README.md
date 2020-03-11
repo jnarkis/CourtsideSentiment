@@ -9,7 +9,7 @@ A front-row seat to the opinions of Reddit!
 1. [Stretch Goals](README.md#stretch-goals)
 
 ## Project idea
-Courtside Sentiment is a web application designed for the PR representative of a particular person of people, that allows them to investigate how the perception of their client changes over time according to Reddit comments.  If a client is interested in selling a new product, the release date can have a significant impact on overall sales. 
+Courtside Sentiment is a web application designed for the PR representative of a particular person or people, that allows them to investigate how the perception of their client changes over time according to Reddit comments.  If a client is interested in selling a new product, the release date can have a significant impact on overall sales. 
 
 Much of the decision-making process can be done by looking at previous sales data of similar products.  For example, an NBA player will probably sell more jerseys and other products for die-hard fans around the start of the postseason championships, but around the holidays they might be more likely to sell novelty items like pet outfits to casual fans.
 
@@ -30,7 +30,7 @@ Querying the data in compressed JSON format (bz2) worked well for the smaller fi
 ![](querytime.png)
 
 ## Minimum viable product
-The end result for the MVP can be seen in the [front end directory](https://github.com/jnarkis/CourtsideSentiment/tree/master/file_conversion) - a moving average sentiment is calculated for several NBA players over a specified date range. The plot allows users to select a certain date to get more information about a discrete event that led to a large shift in sentiment. Shown below is an example, in which CourtsideSentiment identified a discrete event for Lebron James on 09/23/2017.  As reflected in the Reddit comments on that day, this event was a Twitter fight with the President!
+The end result for the MVP can be seen in the [front end directory](https://github.com/jnarkis/CourtsideSentiment/tree/master/front_end) - a moving average sentiment is calculated for several NBA players over a specified date range. The plot allows users to select a certain date to get more information about a discrete event that led to a large shift in sentiment. Shown below is an example, in which CourtsideSentiment identified a discrete event for Lebron James on 09/23/2017.  As reflected in the Reddit comments on that day, this event was a Twitter fight with the President!
 
 ![](front_end/screenshot.png)
 
